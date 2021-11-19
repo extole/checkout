@@ -104,21 +104,18 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     core.endGroup()
 
     // Determine the default branch
-    core.startGroup('Determining the default branch')
-    let defaultBranch: string
-
-    if (settings.sshKey) {
-      defaultBranch = await git.getDefaultBranch(repositoryUrl)
-    } else {
-      defaultBranch = await githubApiHelper.getDefaultBranch(
-        settings.authToken,
-        settings.repositoryOwner,
-        settings.repositoryName
-      )
-    }
-
     if (!settings.ref && !settings.commit) {
-      settings.ref = defaultBranch
+      core.startGroup('Determining the default branch')
+      if (settings.sshKey) {
+        settings.ref = await git.getDefaultBranch(repositoryUrl)
+      } else {
+        settings.ref = await githubApiHelper.getDefaultBranch(
+          settings.authToken,
+          settings.repositoryOwner,
+          settings.repositoryName
+        )
+      }
+      core.endGroup()
     }
 
     core.endGroup()

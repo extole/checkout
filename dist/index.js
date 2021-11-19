@@ -7377,16 +7377,15 @@ function getSource(settings) {
             yield authHelper.configureAuth();
             core.endGroup();
             // Determine the default branch
-            core.startGroup('Determining the default branch');
-            let defaultBranch;
-            if (settings.sshKey) {
-                defaultBranch = yield git.getDefaultBranch(repositoryUrl);
-            }
-            else {
-                defaultBranch = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
-            }
             if (!settings.ref && !settings.commit) {
-                settings.ref = defaultBranch;
+                core.startGroup('Determining the default branch');
+                if (settings.sshKey) {
+                    settings.ref = yield git.getDefaultBranch(repositoryUrl);
+                }
+                else {
+                    settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
+                }
+                core.endGroup();
             }
             core.endGroup();
             // LFS install
