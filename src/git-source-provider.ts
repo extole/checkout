@@ -136,7 +136,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     let refToFetch = settings.ref
     core.info(`Defaulting refToFetch to ${refToFetch}`)
 
-    if (!(await refHelper.testRef(git, settings.ref, settings.commit))) {
+    if (!(await refHelper.testBranchExists(git, settings.ref))) {
       core.info(`testRef failed for ${settings.ref}`)
       refToFetch = defaultBranch
       core.info(`refToFetch is now ${refToFetch}`)

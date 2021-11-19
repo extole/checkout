@@ -4267,7 +4267,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkCommitInfo = exports.testRef = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
+exports.checkCommitInfo = exports.testRef = exports.testBranchExists = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
 const url_1 = __webpack_require__(835);
 const core = __importStar(__webpack_require__(470));
 const github = __importStar(__webpack_require__(469));
@@ -4376,6 +4376,18 @@ function getRefSpec(ref, commit) {
     }
 }
 exports.getRefSpec = getRefSpec;
+function testBranchExists(git, ref) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const upperRef = ref.toUpperCase();
+        let branch = ref;
+        // refs/heads/
+        if (upperRef.startsWith('REFS/HEADS/')) {
+            branch = ref.substring('refs/heads/'.length);
+        }
+        return yield git.branchExists(true, `origin/${branch}`);
+    });
+}
+exports.testBranchExists = testBranchExists;
 /**
  * Tests whether the initial fetch created the ref at the expected commit
  */
@@ -7387,7 +7399,7 @@ function getSource(settings) {
             core.info('Checking if the passed ref/commit exists');
             let refToFetch = settings.ref;
             core.info(`Defaulting refToFetch to ${refToFetch}`);
-            if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
+            if (!(yield refHelper.testBranchExists(git, settings.ref))) {
                 core.info(`testRef failed for ${settings.ref}`);
                 refToFetch = defaultBranch;
                 core.info(`refToFetch is now ${refToFetch}`);

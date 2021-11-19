@@ -123,6 +123,22 @@ export function getRefSpec(ref: string, commit: string): string[] {
   }
 }
 
+export async function testBranchExists(
+  git: IGitCommandManager,
+  ref: string
+): Promise<Boolean> {
+  const upperRef = ref.toUpperCase()
+
+  let branch = ref
+
+  // refs/heads/
+  if (upperRef.startsWith('REFS/HEADS/')) {
+    branch = ref.substring('refs/heads/'.length)
+  }
+
+  return await git.branchExists(true, `origin/${branch}`)
+}
+
 /**
  * Tests whether the initial fetch created the ref at the expected commit
  */
