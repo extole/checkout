@@ -7387,7 +7387,6 @@ function getSource(settings) {
                 }
                 core.endGroup();
             }
-            core.endGroup();
             // LFS install
             if (settings.lfs) {
                 yield git.lfsInstall();
@@ -7397,7 +7396,6 @@ function getSource(settings) {
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
-                core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`);
                 yield git.fetch(refSpec);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -7408,7 +7406,6 @@ function getSource(settings) {
             }
             else {
                 const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
-                core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`);
                 yield git.fetch(refSpec, settings.fetchDepth);
             }
             core.endGroup();

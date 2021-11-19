@@ -118,8 +118,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       core.endGroup()
     }
 
-    core.endGroup()
-
     // LFS install
     if (settings.lfs) {
       await git.lfsInstall()
@@ -127,14 +125,12 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Fetch
     core.startGroup('Fetching the repository')
-
     if (settings.fetchDepth <= 0) {
       // Fetch all branches and tags
       let refSpec = refHelper.getRefSpecForAllHistory(
         settings.ref,
         settings.commit
       )
-      core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`)
       await git.fetch(refSpec)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
@@ -145,7 +141,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       }
     } else {
       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
-      core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`)
       await git.fetch(refSpec, settings.fetchDepth)
     }
     core.endGroup()
