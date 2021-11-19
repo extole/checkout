@@ -770,6 +770,7 @@ async function setup(testName: string): Promise<void> {
     nestedSubmodules: false,
     persistCredentials: true,
     ref: 'refs/heads/main',
+    targetRef: '',
     repositoryName: 'my-repo',
     repositoryOwner: 'my-org',
     repositoryPath: '',

@@ -78,6 +78,10 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   core.debug(`ref = '${result.ref}'`)
   core.debug(`commit = '${result.commit}'`)
 
+  // Target ref
+  result.targetRef = core.getInput('target-ref')
+  core.debug(`target-ref = '${result.targetRef}'`)
+
   // Clean
   result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE'
   core.debug(`clean = ${result.clean}`)

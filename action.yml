@@ -9,6 +9,9 @@ inputs:
       The branch, tag or SHA to checkout. When checking out the repository that
       triggered a workflow, this defaults to the reference or SHA for that
       event.  Otherwise, uses the default branch.
+  target-ref:
+    description: >
+      The branch, tag or SHA to try to checkout if exists
   token:
     description: >
       Personal access token (PAT) used to fetch the repository. The PAT is configured

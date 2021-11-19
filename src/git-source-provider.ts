@@ -131,23 +131,10 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     // Fetch
     core.startGroup('Fetching the repository')
 
-    // Check if the passed ref/commit exists. If not, use defaultBranch
-    core.info('Checking if the passed ref/commit exists')
-    let refToFetch = settings.ref
-    core.info(`Defaulting refToFetch to ${refToFetch}`)
-
-    if (!(await refHelper.testBranchExists(git, settings.ref))) {
-      core.info(`testRef failed for ${settings.ref}`)
-      refToFetch = defaultBranch
-      core.info(`refToFetch is now ${refToFetch}`)
-    } else {
-      core.info(`testRef passed for ${settings.ref}`)
-    }
-
     if (settings.fetchDepth <= 0) {
       // Fetch all branches and tags
       let refSpec = refHelper.getRefSpecForAllHistory(
-        refToFetch,
+        settings.ref,
         settings.commit
       )
       core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`)
@@ -155,22 +142,38 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
       // When all history is fetched, the ref we're interested in may have moved to a different
       // commit (push or force push). If so, fetch again with a targeted refspec.
-      if (!(await refHelper.testRef(git, refToFetch, settings.commit))) {
-        refSpec = refHelper.getRefSpec(refToFetch, settings.commit)
+      if (!(await refHelper.testRef(git, settings.ref, settings.commit))) {
+        refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
         await git.fetch(refSpec)
       }
     } else {
-      const refSpec = refHelper.getRefSpec(refToFetch, settings.commit)
+      const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
       core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`)
       await git.fetch(refSpec, settings.fetchDepth)
     }
+    core.endGroup()
+
+    // Checkout target ref if possible
+    core.startGroup('Checking if target ref can be checked out')
+
+    // Check if the passed ref/commit exists. If not, use defaultBranch
+    core.info('Checking if target ref exists')
+
+    if (await refHelper.testRefExists(git, settings.targetRef)) {
+      core.info(`target ref ${settings.targetRef} exists, checking it out`)
+      const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit)
+      await git.fetch(refSpec)
+
+      settings.ref = settings.targetRef
+    }
+
     core.endGroup()
 
     // Checkout info
     core.startGroup('Determining the checkout info')
     const checkoutInfo = await refHelper.getCheckoutInfo(
       git,
-      refToFetch,
+      settings.ref,
       settings.commit
     )
     core.endGroup()
@@ -234,7 +237,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       commitInfo,
       settings.repositoryOwner,
       settings.repositoryName,
-      refToFetch,
+      settings.ref,
       settings.commit
     )
   } finally {

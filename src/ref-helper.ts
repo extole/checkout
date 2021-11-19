@@ -123,7 +123,7 @@ export function getRefSpec(ref: string, commit: string): string[] {
   }
 }
 
-export async function testBranchExists(
+export async function testRefExists(
   git: IGitCommandManager,
   ref: string
 ): Promise<Boolean> {

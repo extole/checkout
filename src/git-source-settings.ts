@@ -20,6 +20,11 @@ export interface IGitSourceSettings {
   ref: string
 
   /**
+   * The target ref to fetch if it exists
+   */
+  targetRef: string
+
+  /**
    * The commit to checkout
    */
   commit: string

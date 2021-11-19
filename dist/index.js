@@ -4267,7 +4267,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkCommitInfo = exports.testRef = exports.testBranchExists = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
+exports.checkCommitInfo = exports.testRef = exports.testRefExists = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
 const url_1 = __webpack_require__(835);
 const core = __importStar(__webpack_require__(470));
 const github = __importStar(__webpack_require__(469));
@@ -4376,7 +4376,7 @@ function getRefSpec(ref, commit) {
     }
 }
 exports.getRefSpec = getRefSpec;
-function testBranchExists(git, ref) {
+function testRefExists(git, ref) {
     return __awaiter(this, void 0, void 0, function* () {
         const upperRef = ref.toUpperCase();
         let branch = ref;
@@ -4387,7 +4387,7 @@ function testBranchExists(git, ref) {
         return yield git.branchExists(true, `origin/${branch}`);
     });
 }
-exports.testBranchExists = testBranchExists;
+exports.testRefExists = testRefExists;
 /**
  * Tests whether the initial fetch created the ref at the expected commit
  */
@@ -7395,39 +7395,38 @@ function getSource(settings) {
             }
             // Fetch
             core.startGroup('Fetching the repository');
-            // Check if the passed ref/commit exists. If not, use defaultBranch
-            core.info('Checking if the passed ref/commit exists');
-            let refToFetch = settings.ref;
-            core.info(`Defaulting refToFetch to ${refToFetch}`);
-            if (!(yield refHelper.testBranchExists(git, settings.ref))) {
-                core.info(`testRef failed for ${settings.ref}`);
-                refToFetch = defaultBranch;
-                core.info(`refToFetch is now ${refToFetch}`);
-            }
-            else {
-                core.info(`testRef passed for ${settings.ref}`);
-            }
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
-                let refSpec = refHelper.getRefSpecForAllHistory(refToFetch, settings.commit);
+                let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
                 core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`);
                 yield git.fetch(refSpec);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
-                if (!(yield refHelper.testRef(git, refToFetch, settings.commit))) {
-                    refSpec = refHelper.getRefSpec(refToFetch, settings.commit);
+                if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
+                    refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
                     yield git.fetch(refSpec);
                 }
             }
             else {
-                const refSpec = refHelper.getRefSpec(refToFetch, settings.commit);
+                const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
                 core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`);
                 yield git.fetch(refSpec, settings.fetchDepth);
             }
             core.endGroup();
+            // Checkout target ref if possible
+            core.startGroup('Checking if target ref can be checked out');
+            // Check if the passed ref/commit exists. If not, use defaultBranch
+            core.info('Checking if target ref exists');
+            if (yield refHelper.testRefExists(git, settings.targetRef)) {
+                core.info(`target ref ${settings.targetRef} exists, checking it out`);
+                const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit);
+                yield git.fetch(refSpec);
+                settings.ref = settings.targetRef;
+            }
+            core.endGroup();
             // Checkout info
             core.startGroup('Determining the checkout info');
-            const checkoutInfo = yield refHelper.getCheckoutInfo(git, refToFetch, settings.commit);
+            const checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.ref, settings.commit);
             core.endGroup();
             // LFS fetch
             // Explicit lfs-fetch to avoid slow checkout (fetches one lfs object at a time).
@@ -7471,7 +7470,7 @@ function getSource(settings) {
             // Log commit sha
             yield git.log1("--format='%H'");
             // Check for incorrect pull request merge commit
-            yield refHelper.checkCommitInfo(settings.authToken, commitInfo, settings.repositoryOwner, settings.repositoryName, refToFetch, settings.commit);
+            yield refHelper.checkCommitInfo(settings.authToken, commitInfo, settings.repositoryOwner, settings.repositoryName, settings.ref, settings.commit);
         }
         finally {
             // Remove auth
@@ -17235,6 +17234,9 @@ function getInputs() {
         }
         core.debug(`ref = '${result.ref}'`);
         core.debug(`commit = '${result.commit}'`);
+        // Target ref
+        result.targetRef = core.getInput('target-ref');
+        core.debug(`target-ref = '${result.targetRef}'`);
         // Clean
         result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE';
         core.debug(`clean = ${result.clean}`);

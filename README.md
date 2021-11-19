@@ -45,6 +45,9 @@ Refer [here](https://github.com/actions/checkout/blob/v1/README.md) for previous
     # Otherwise, uses the default branch.
     ref: ''
 
+    # The branch, tag or SHA to try to checkout if exists
+    target-ref: ''
+
     # Personal access token (PAT) used to fetch the repository. The PAT is configured
     # with the local git config, which enables your scripts to run authenticated git
     # commands. The post-job step removes the PAT.
