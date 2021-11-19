@@ -170,7 +170,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     core.startGroup('Determining the checkout info')
     const checkoutInfo = await refHelper.getCheckoutInfo(
       git,
-      settings.ref,
+      refToFetch,
       settings.commit
     )
     core.endGroup()
@@ -234,7 +234,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       commitInfo,
       settings.repositoryOwner,
       settings.repositoryName,
-      settings.ref,
+      refToFetch,
       settings.commit
     )
   } finally {

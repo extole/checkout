@@ -7427,7 +7427,7 @@ function getSource(settings) {
             core.endGroup();
             // Checkout info
             core.startGroup('Determining the checkout info');
-            const checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.ref, settings.commit);
+            const checkoutInfo = yield refHelper.getCheckoutInfo(git, refToFetch, settings.commit);
             core.endGroup();
             // LFS fetch
             // Explicit lfs-fetch to avoid slow checkout (fetches one lfs object at a time).
@@ -7471,7 +7471,7 @@ function getSource(settings) {
             // Log commit sha
             yield git.log1("--format='%H'");
             // Check for incorrect pull request merge commit
-            yield refHelper.checkCommitInfo(settings.authToken, commitInfo, settings.repositoryOwner, settings.repositoryName, settings.ref, settings.commit);
+            yield refHelper.checkCommitInfo(settings.authToken, commitInfo, settings.repositoryOwner, settings.repositoryName, refToFetch, settings.commit);
         }
         finally {
             // Remove auth
