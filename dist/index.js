@@ -7384,13 +7384,21 @@ function getSource(settings) {
             // Fetch
             core.startGroup('Fetching the repository');
             // Check if the passed ref/commit exists. If not, use defaultBranch
+            core.info('Checking if the passed ref/commit exists');
             let refToFetch = settings.ref;
+            core.info(`Defaulting refToFetch to ${refToFetch}`);
             if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
+                core.info(`testRef failed for ${settings.ref}`);
                 refToFetch = defaultBranch;
+                core.info(`refToFetch is now ${refToFetch}`);
+            }
+            else {
+                core.info(`testRef passed for ${settings.ref}`);
             }
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(refToFetch, settings.commit);
+                core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`);
                 yield git.fetch(refSpec);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -7401,6 +7409,7 @@ function getSource(settings) {
             }
             else {
                 const refSpec = refHelper.getRefSpec(refToFetch, settings.commit);
+                core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`);
                 yield git.fetch(refSpec, settings.fetchDepth);
             }
             core.endGroup();

@@ -132,11 +132,16 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     core.startGroup('Fetching the repository')
 
     // Check if the passed ref/commit exists. If not, use defaultBranch
-
+    core.info('Checking if the passed ref/commit exists')
     let refToFetch = settings.ref
+    core.info(`Defaulting refToFetch to ${refToFetch}`)
 
     if (!(await refHelper.testRef(git, settings.ref, settings.commit))) {
+      core.info(`testRef failed for ${settings.ref}`)
       refToFetch = defaultBranch
+      core.info(`refToFetch is now ${refToFetch}`)
+    } else {
+      core.info(`testRef passed for ${settings.ref}`)
     }
 
     if (settings.fetchDepth <= 0) {
@@ -145,6 +150,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         refToFetch,
         settings.commit
       )
+      core.info(`fetching refSpec for fetchDepth <= 0: ${refSpec}`)
       await git.fetch(refSpec)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
@@ -155,6 +161,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       }
     } else {
       const refSpec = refHelper.getRefSpec(refToFetch, settings.commit)
+      core.info(`fetching refSpec for fetchDepth > 0: ${refSpec}`)
       await git.fetch(refSpec, settings.fetchDepth)
     }
     core.endGroup()
