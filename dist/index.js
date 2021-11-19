@@ -13330,10 +13330,8 @@ exports.RetryHelper = RetryHelper;
 function execute(action) {
     return __awaiter(this, void 0, void 0, function* () {
         const checkoutRetryMaxAttempsEnv = process.env.CHECKOUT_RETRY_MAX_ATTEMPTS;
-        core.info(`checkoutRetryMaxAttempsEnv:  ${checkoutRetryMaxAttempsEnv}`);
         let retryHelper;
         if (checkoutRetryMaxAttempsEnv &&
-            Number.isInteger(checkoutRetryMaxAttempsEnv) &&
             Number(checkoutRetryMaxAttempsEnv) > 0) {
             retryHelper = new RetryHelper(Number(checkoutRetryMaxAttempsEnv));
         }
