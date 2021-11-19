@@ -104,19 +104,24 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     core.endGroup()
 
     // Determine the default branch
-    if (!settings.ref && !settings.commit) {
-      core.startGroup('Determining the default branch')
-      if (settings.sshKey) {
-        settings.ref = await git.getDefaultBranch(repositoryUrl)
-      } else {
-        settings.ref = await githubApiHelper.getDefaultBranch(
-          settings.authToken,
-          settings.repositoryOwner,
-          settings.repositoryName
-        )
-      }
-      core.endGroup()
+    core.startGroup('Determining the default branch')
+    let defaultBranch: string
+
+    if (settings.sshKey) {
+      defaultBranch = await git.getDefaultBranch(repositoryUrl)
+    } else {
+      defaultBranch = await githubApiHelper.getDefaultBranch(
+        settings.authToken,
+        settings.repositoryOwner,
+        settings.repositoryName
+      )
     }
+
+    if (!settings.ref && !settings.commit) {
+      settings.ref = defaultBranch
+    }
+
+    core.endGroup()
 
     // LFS install
     if (settings.lfs) {
@@ -125,22 +130,31 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Fetch
     core.startGroup('Fetching the repository')
+
+    // Check if the passed ref/commit exists. If not, use defaultBranch
+
+    let refToFetch = settings.ref
+
+    if (!(await refHelper.testRef(git, settings.ref, settings.commit))) {
+      refToFetch = defaultBranch
+    }
+
     if (settings.fetchDepth <= 0) {
       // Fetch all branches and tags
       let refSpec = refHelper.getRefSpecForAllHistory(
-        settings.ref,
+        refToFetch,
         settings.commit
       )
       await git.fetch(refSpec)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
       // commit (push or force push). If so, fetch again with a targeted refspec.
-      if (!(await refHelper.testRef(git, settings.ref, settings.commit))) {
-        refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
+      if (!(await refHelper.testRef(git, refToFetch, settings.commit))) {
+        refSpec = refHelper.getRefSpec(refToFetch, settings.commit)
         await git.fetch(refSpec)
       }
     } else {
-      const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
+      const refSpec = refHelper.getRefSpec(refToFetch, settings.commit)
       await git.fetch(refSpec, settings.fetchDepth)
     }
     core.endGroup()

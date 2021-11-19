@@ -56,19 +56,6 @@ export class RetryHelper {
 }
 
 export async function execute<T>(action: () => Promise<T>): Promise<T> {
-  const checkoutRetryMaxAttempsEnv = process.env.CHECKOUT_RETRY_MAX_ATTEMPTS
-
-  let retryHelper: RetryHelper
-
-  if (
-    checkoutRetryMaxAttempsEnv &&
-    Number(checkoutRetryMaxAttempsEnv) > 0
-  ) {
-    retryHelper = new RetryHelper(Number(checkoutRetryMaxAttempsEnv))
-  } else {
-    core.error(`CHECKOUT_RETRY_MAX_ATTEMPTS is invalid, default will be used`)
-    retryHelper = new RetryHelper()
-  }
-
+  const retryHelper = new RetryHelper()
   return await retryHelper.execute(action)
 }
