@@ -17230,7 +17230,7 @@ function getInputs() {
         }
         core.debug(`ref = '${result.ref}'`);
         core.debug(`commit = '${result.commit}'`);
-        // Target ref
+        // Default ref on error
         result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE';
         core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`);
         // Clean
