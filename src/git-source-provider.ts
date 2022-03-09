@@ -141,7 +141,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Fetch
     core.startGroup('Fetching the repository')
-    if (settings.fetchDepth <= 0) {
+    if (settings.fetchDepth <= 0 || (settings.defaultRefOnError && settings.defaultRefOnError === true)) {
       // Fetch all branches and tags
       let refSpec = refHelper.getRefSpecForAllHistory(
         settings.ref,
@@ -157,12 +157,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       }
     } else {
       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
-
-      if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-        await git.fetch(refSpec, 0)
-      } else {
-        await git.fetch(refSpec, settings.fetchDepth)
-      }
+      await git.fetch(refSpec, settings.fetchDepth)
     }
     core.endGroup()
 

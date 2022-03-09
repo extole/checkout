@@ -7403,7 +7403,7 @@ function getSource(settings) {
             }
             // Fetch
             core.startGroup('Fetching the repository');
-            if (settings.fetchDepth <= 0) {
+            if (settings.fetchDepth <= 0 || (settings.defaultRefOnError && settings.defaultRefOnError === true)) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
                 yield git.fetch(refSpec);
@@ -7416,12 +7416,7 @@ function getSource(settings) {
             }
             else {
                 const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
-                if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-                    yield git.fetch(refSpec, 0);
-                }
-                else {
-                    yield git.fetch(refSpec, settings.fetchDepth);
-                }
+                yield git.fetch(refSpec, settings.fetchDepth);
             }
             core.endGroup();
             // Checkout info
