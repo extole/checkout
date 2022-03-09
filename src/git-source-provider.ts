@@ -147,12 +147,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         settings.ref,
         settings.commit
       )
-
-      if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-        await git.fetch(refSpec, 0)
-      } else {
-        await git.fetch(refSpec)
-      }
+      await git.fetch(refSpec)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
       // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -162,7 +157,12 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       }
     } else {
       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
-      await git.fetch(refSpec, settings.fetchDepth)
+
+      if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+        await git.fetch(refSpec, 0)
+      } else {
+        await git.fetch(refSpec, settings.fetchDepth)
+      }
     }
     core.endGroup()
 

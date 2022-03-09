@@ -7406,12 +7406,7 @@ function getSource(settings) {
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
-                if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-                    yield git.fetch(refSpec, 0);
-                }
-                else {
-                    yield git.fetch(refSpec);
-                }
+                yield git.fetch(refSpec);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
                 if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
@@ -7421,7 +7416,12 @@ function getSource(settings) {
             }
             else {
                 const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
-                yield git.fetch(refSpec, settings.fetchDepth);
+                if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+                    yield git.fetch(refSpec, 0);
+                }
+                else {
+                    yield git.fetch(refSpec, settings.fetchDepth);
+                }
             }
             core.endGroup();
             // Checkout info
