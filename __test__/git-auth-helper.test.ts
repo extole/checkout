@@ -771,6 +771,7 @@ async function setup(testName: string): Promise<void> {
     persistCredentials: true,
     ref: 'refs/heads/main',
     targetRef: '',
+    defaultRefOnError: false,
     repositoryName: 'my-repo',
     repositoryOwner: 'my-org',
     repositoryPath: '',
