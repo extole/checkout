@@ -97,8 +97,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
   core.endGroup()
 
   const authHelper = gitAuthHelper.createAuthHelper(git, settings)
-
-  
   try {
     // Configure auth
     core.startGroup('Setting up auth')
@@ -132,6 +130,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
           settings.repositoryName
         )
       }
+      core.endGroup()
     }
 
     // LFS install

@@ -7384,6 +7384,7 @@ function getSource(settings) {
                 else {
                     settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
                 }
+                core.endGroup();
             }
             // LFS install
             if (settings.lfs) {
@@ -13302,7 +13303,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.executeOnce = exports.execute = exports.RetryHelper = void 0;
+exports.execute = exports.RetryHelper = void 0;
 const core = __importStar(__webpack_require__(470));
 const defaultMaxAttempts = 3;
 const defaultMinSeconds = 10;
@@ -13356,13 +13357,6 @@ function execute(action) {
     });
 }
 exports.execute = execute;
-function executeOnce(action) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const retryHelper = new RetryHelper(0);
-        return yield retryHelper.execute(action);
-    });
-}
-exports.executeOnce = executeOnce;
 
 
 /***/ }),

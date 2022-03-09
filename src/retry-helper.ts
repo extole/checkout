@@ -59,8 +59,3 @@ export async function execute<T>(action: () => Promise<T>): Promise<T> {
   const retryHelper = new RetryHelper()
   return await retryHelper.execute(action)
 }
-
-export async function executeOnce<T>(action: () => Promise<T>): Promise<T> {
-  const retryHelper = new RetryHelper(0)
-  return await retryHelper.execute(action)
-}
