@@ -4267,7 +4267,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkCommitInfo = exports.testRef = exports.testRefExists = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
+exports.checkCommitInfo = exports.testRef = exports.getRefSpec = exports.getRefSpecForAllHistory = exports.getCheckoutInfo = exports.tagsRefSpec = void 0;
 const url_1 = __webpack_require__(835);
 const core = __importStar(__webpack_require__(470));
 const github = __importStar(__webpack_require__(469));
@@ -4376,18 +4376,6 @@ function getRefSpec(ref, commit) {
     }
 }
 exports.getRefSpec = getRefSpec;
-function testRefExists(git, ref) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const upperRef = ref.toUpperCase();
-        let branch = ref;
-        // refs/heads/
-        if (upperRef.startsWith('REFS/HEADS/')) {
-            branch = ref.substring('refs/heads/'.length);
-        }
-        return yield git.branchExists(true, `origin/${branch}`);
-    });
-}
-exports.testRefExists = testRefExists;
 /**
  * Tests whether the initial fetch created the ref at the expected commit
  */
