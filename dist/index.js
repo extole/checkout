@@ -6971,7 +6971,7 @@ class GitCommandManager {
             return output.exitCode === 0;
         });
     }
-    fetch(refSpec, fetchDepth, retry = true) {
+    fetch(refSpec, fetchDepth) {
         return __awaiter(this, void 0, void 0, function* () {
             const args = ['-c', 'protocol.version=2', 'fetch'];
             if (!refSpec.some(x => x === refHelper.tagsRefSpec)) {
@@ -6989,21 +6989,9 @@ class GitCommandManager {
                 args.push(arg);
             }
             const that = this;
-            if (retry) {
-                yield retryHelper.execute(() => __awaiter(this, void 0, void 0, function* () {
-                    yield that.execGit(args);
-                }));
-            }
-            else {
-                yield retryHelper.executeOnce(() => __awaiter(this, void 0, void 0, function* () {
-                    yield that.execGit(args);
-                }));
-            }
-        });
-    }
-    fetchOnce(refSpec, fetchDepth) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.fetch(refSpec, fetchDepth, false);
+            yield retryHelper.execute(() => __awaiter(this, void 0, void 0, function* () {
+                yield that.execGit(args);
+            }));
         });
     }
     getDefaultBranch(repositoryUrl) {
@@ -7388,6 +7376,17 @@ function getSource(settings) {
             core.startGroup('Setting up auth');
             yield authHelper.configureAuth();
             core.endGroup();
+            if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+                // Configure default branch
+                core.startGroup('Setting up default branch');
+                if (settings.sshKey) {
+                    settings.defaultBranch = yield git.getDefaultBranch(repositoryUrl);
+                }
+                else {
+                    settings.defaultBranch = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
+                }
+                core.endGroup();
+            }
             // Determine the default branch
             if (!settings.ref && !settings.commit) {
                 core.startGroup('Determining the default branch');
@@ -7397,7 +7396,6 @@ function getSource(settings) {
                 else {
                     settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
                 }
-                core.endGroup();
             }
             // LFS install
             if (settings.lfs) {
@@ -7408,25 +7406,7 @@ function getSource(settings) {
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
-                if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-                    try {
-                        yield git.fetch(refSpec, undefined, false);
-                    }
-                    catch (error) {
-                        core.info('Could not fetch the ref, not retrying. Checking out default branch');
-                        if (settings.sshKey) {
-                            settings.ref = yield git.getDefaultBranch(repositoryUrl);
-                        }
-                        else {
-                            settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
-                        }
-                        refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
-                        yield git.fetch(refSpec);
-                    }
-                }
-                else {
-                    yield git.fetch(refSpec);
-                }
+                yield git.fetch(refSpec);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
                 if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
@@ -7441,7 +7421,19 @@ function getSource(settings) {
             core.endGroup();
             // Checkout info
             core.startGroup('Determining the checkout info');
-            const checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.ref, settings.commit);
+            let checkoutInfo;
+            if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+                try {
+                    checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.ref, settings.commit);
+                }
+                catch (error) {
+                    core.info('Could not determine the checkout info. Trying the default repo branch');
+                    checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.defaultBranch, settings.commit);
+                }
+            }
+            else {
+                checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.ref, settings.commit);
+            }
             core.endGroup();
             // LFS fetch
             // Explicit lfs-fetch to avoid slow checkout (fetches one lfs object at a time).
@@ -17259,9 +17251,6 @@ function getInputs() {
         // Target ref
         result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE';
         core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`);
-        // Target ref
-        result.targetRef = core.getInput('target-ref');
-        core.debug(`target-ref = '${result.targetRef}'`);
         // Clean
         result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE';
         core.debug(`clean = ${result.clean}`);

@@ -22,12 +22,12 @@ export interface IGitSourceSettings {
   /**
    * Whether to checkout the default repository branch if specified ref does not exist.
    */
-   defaultRefOnError: boolean
+  defaultRefOnError: boolean
 
   /**
    * The target ref to fetch if it exists
    */
-  targetRef: string
+  defaultBranch: string
 
   /**
    * The commit to checkout

@@ -97,11 +97,28 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
   core.endGroup()
 
   const authHelper = gitAuthHelper.createAuthHelper(git, settings)
+
+  
   try {
     // Configure auth
     core.startGroup('Setting up auth')
     await authHelper.configureAuth()
     core.endGroup()
+
+    if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+      // Configure default branch
+      core.startGroup('Setting up default branch')
+      if (settings.sshKey) {
+        settings.defaultBranch = await git.getDefaultBranch(repositoryUrl)
+      } else {
+        settings.defaultBranch = await githubApiHelper.getDefaultBranch(
+          settings.authToken,
+          settings.repositoryOwner,
+          settings.repositoryName
+        )
+      }
+      core.endGroup()
+    }
 
     // Determine the default branch
     if (!settings.ref && !settings.commit) {
@@ -115,7 +132,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
           settings.repositoryName
         )
       }
-      core.endGroup()
     }
 
     // LFS install
@@ -131,32 +147,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         settings.ref,
         settings.commit
       )
-
-      if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-        try {
-          await git.fetch(refSpec, undefined, false)
-        } catch (error) {
-          core.info('Could not fetch the ref, not retrying. Checking out default branch')
-          if (settings.sshKey) {
-            settings.ref = await git.getDefaultBranch(repositoryUrl)
-          } else {
-            settings.ref = await githubApiHelper.getDefaultBranch(
-              settings.authToken,
-              settings.repositoryOwner,
-              settings.repositoryName
-            )
-          }
-
-          refSpec = refHelper.getRefSpecForAllHistory(
-            settings.ref,
-            settings.commit
-          )
-
-          await git.fetch(refSpec)
-        }
-      } else {
-        await git.fetch(refSpec)
-      }
+      await git.fetch(refSpec)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
       // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -172,11 +163,30 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Checkout info
     core.startGroup('Determining the checkout info')
-    const checkoutInfo = await refHelper.getCheckoutInfo(
-      git,
-      settings.ref,
-      settings.commit
-    )
+    let checkoutInfo: refHelper.ICheckoutInfo;
+    if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+
+      try {
+        checkoutInfo = await refHelper.getCheckoutInfo(
+          git,
+          settings.ref,
+          settings.commit
+        )
+      } catch (error) {
+        core.info('Could not determine the checkout info. Trying the default repo branch')
+        checkoutInfo = await refHelper.getCheckoutInfo(
+          git,
+          settings.defaultBranch,
+          settings.commit
+        )
+      }
+    } else {
+      checkoutInfo = await refHelper.getCheckoutInfo(
+        git,
+        settings.ref,
+        settings.commit
+      )
+    }
     core.endGroup()
 
     // LFS fetch

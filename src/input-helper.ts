@@ -82,10 +82,6 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE'
   core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`)
 
-  // Target ref
-  result.targetRef = core.getInput('target-ref')
-  core.debug(`target-ref = '${result.targetRef}'`)
-
   // Clean
   result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE'
   core.debug(`clean = ${result.clean}`)
