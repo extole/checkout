@@ -32,6 +32,11 @@ When Git 2.18 or higher is not in your PATH, falls back to the REST API to downl
     # Otherwise, uses the default branch.
     ref: ''
 
+    # Whether to checkout the default repository branch if specified ref does not
+    # exist. If this is set to true, then fetch-depth should be 0
+    # Default: false
+    default-ref-on-error: ''
+
     # The branch, tag or SHA to try to checkout if exists
     target-ref: ''
 

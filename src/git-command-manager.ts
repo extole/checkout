@@ -25,7 +25,7 @@ export interface IGitCommandManager {
     add?: boolean
   ): Promise<void>
   configExists(configKey: string, globalConfig?: boolean): Promise<boolean>
-  fetch(refSpec: string[], fetchDepth?: number): Promise<void>
+  fetch(refSpec: string[], fetchDepth?: number, retry?: boolean): Promise<void>
   getDefaultBranch(repositoryUrl: string): Promise<string>
   getWorkingDirectory(): string
   init(): Promise<void>
@@ -170,7 +170,7 @@ class GitCommandManager {
     return output.exitCode === 0
   }
 
-  async fetch(refSpec: string[], fetchDepth?: number): Promise<void> {
+  async fetch(refSpec: string[], fetchDepth?: number, retry: boolean = true): Promise<void> {
     const args = ['-c', 'protocol.version=2', 'fetch']
     if (!refSpec.some(x => x === refHelper.tagsRefSpec)) {
       args.push('--no-tags')
@@ -193,9 +193,20 @@ class GitCommandManager {
     }
 
     const that = this
-    await retryHelper.execute(async () => {
-      await that.execGit(args)
-    })
+    if (retry) {
+      await retryHelper.execute(async () => {
+        await that.execGit(args)
+      })
+    } else {
+      await retryHelper.executeOnce(async () => {
+        await that.execGit(args)
+      })
+    }
+    
+  }
+
+  async fetchOnce(refSpec: string[], fetchDepth?: number): Promise<void> {
+    await this.fetch(refSpec, fetchDepth, false);
   }
 
   async getDefaultBranch(repositoryUrl: string): Promise<string> {

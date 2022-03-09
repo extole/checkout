@@ -79,6 +79,10 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   core.debug(`commit = '${result.commit}'`)
 
   // Target ref
+  result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE'
+  core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`)
+
+  // Target ref
   result.targetRef = core.getInput('target-ref')
   core.debug(`target-ref = '${result.targetRef}'`)
 

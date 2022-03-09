@@ -131,7 +131,32 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         settings.ref,
         settings.commit
       )
-      await git.fetch(refSpec)
+
+      if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+        try {
+          await git.fetch(refSpec, undefined, false)
+        } catch (error) {
+          core.info('Could not fetch the ref, not retrying. Checking out default branch')
+          if (settings.sshKey) {
+            settings.ref = await git.getDefaultBranch(repositoryUrl)
+          } else {
+            settings.ref = await githubApiHelper.getDefaultBranch(
+              settings.authToken,
+              settings.repositoryOwner,
+              settings.repositoryName
+            )
+          }
+
+          refSpec = refHelper.getRefSpecForAllHistory(
+            settings.ref,
+            settings.commit
+          )
+
+          await git.fetch(refSpec)
+        }
+      } else {
+        await git.fetch(refSpec)
+      }
 
       // When all history is fetched, the ref we're interested in may have moved to a different
       // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -143,26 +168,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
       await git.fetch(refSpec, settings.fetchDepth)
     }
-    core.endGroup()
-
-    // Checkout target ref if possible
-    core.startGroup('Checking if target ref can be checked out')
-
-    // Check if the passed ref/commit exists. If not, use defaultBranch
-    core.info(`Checking if target ref ${settings.targetRef} exists`)
-
-    let targetRefExists = await refHelper.testRefExists(git, settings.targetRef);
-    core.info(`Target ref exists: ${targetRefExists}`)
-    if (targetRefExists) {
-      core.info(`target ref ${settings.targetRef} exists, checking it out`)
-      const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit)
-      await git.fetch(refSpec)
-
-      settings.ref = settings.targetRef
-    }
-
-    core.info(`Target ref: ${settings.ref}`)
-
     core.endGroup()
 
     // Checkout info

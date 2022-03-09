@@ -6971,7 +6971,7 @@ class GitCommandManager {
             return output.exitCode === 0;
         });
     }
-    fetch(refSpec, fetchDepth) {
+    fetch(refSpec, fetchDepth, retry = true) {
         return __awaiter(this, void 0, void 0, function* () {
             const args = ['-c', 'protocol.version=2', 'fetch'];
             if (!refSpec.some(x => x === refHelper.tagsRefSpec)) {
@@ -6989,9 +6989,21 @@ class GitCommandManager {
                 args.push(arg);
             }
             const that = this;
-            yield retryHelper.execute(() => __awaiter(this, void 0, void 0, function* () {
-                yield that.execGit(args);
-            }));
+            if (retry) {
+                yield retryHelper.execute(() => __awaiter(this, void 0, void 0, function* () {
+                    yield that.execGit(args);
+                }));
+            }
+            else {
+                yield retryHelper.executeOnce(() => __awaiter(this, void 0, void 0, function* () {
+                    yield that.execGit(args);
+                }));
+            }
+        });
+    }
+    fetchOnce(refSpec, fetchDepth) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.fetch(refSpec, fetchDepth, false);
         });
     }
     getDefaultBranch(repositoryUrl) {
@@ -7396,7 +7408,25 @@ function getSource(settings) {
             if (settings.fetchDepth <= 0) {
                 // Fetch all branches and tags
                 let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
-                yield git.fetch(refSpec);
+                if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+                    try {
+                        yield git.fetch(refSpec, undefined, false);
+                    }
+                    catch (error) {
+                        core.info('Could not fetch the ref, not retrying. Checking out default branch');
+                        if (settings.sshKey) {
+                            settings.ref = yield git.getDefaultBranch(repositoryUrl);
+                        }
+                        else {
+                            settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
+                        }
+                        refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
+                        yield git.fetch(refSpec);
+                    }
+                }
+                else {
+                    yield git.fetch(refSpec);
+                }
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
                 if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
@@ -7408,20 +7438,6 @@ function getSource(settings) {
                 const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
                 yield git.fetch(refSpec, settings.fetchDepth);
             }
-            core.endGroup();
-            // Checkout target ref if possible
-            core.startGroup('Checking if target ref can be checked out');
-            // Check if the passed ref/commit exists. If not, use defaultBranch
-            core.info(`Checking if target ref ${settings.targetRef} exists`);
-            let targetRefExists = yield refHelper.testRefExists(git, settings.targetRef);
-            core.info(`Target ref exists: ${targetRefExists}`);
-            if (targetRefExists) {
-                core.info(`target ref ${settings.targetRef} exists, checking it out`);
-                const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit);
-                yield git.fetch(refSpec);
-                settings.ref = settings.targetRef;
-            }
-            core.info(`Target ref: ${settings.ref}`);
             core.endGroup();
             // Checkout info
             core.startGroup('Determining the checkout info');
@@ -13306,7 +13322,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.execute = exports.RetryHelper = void 0;
+exports.executeOnce = exports.execute = exports.RetryHelper = void 0;
 const core = __importStar(__webpack_require__(470));
 const defaultMaxAttempts = 3;
 const defaultMinSeconds = 10;
@@ -13360,6 +13376,13 @@ function execute(action) {
     });
 }
 exports.execute = execute;
+function executeOnce(action) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const retryHelper = new RetryHelper(0);
+        return yield retryHelper.execute(action);
+    });
+}
+exports.executeOnce = executeOnce;
 
 
 /***/ }),
@@ -17233,6 +17256,9 @@ function getInputs() {
         }
         core.debug(`ref = '${result.ref}'`);
         core.debug(`commit = '${result.commit}'`);
+        // Target ref
+        result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE';
+        core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`);
         // Target ref
         result.targetRef = core.getInput('target-ref');
         core.debug(`target-ref = '${result.targetRef}'`);
