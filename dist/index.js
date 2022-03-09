@@ -7412,13 +7412,16 @@ function getSource(settings) {
             // Checkout target ref if possible
             core.startGroup('Checking if target ref can be checked out');
             // Check if the passed ref/commit exists. If not, use defaultBranch
-            core.info('Checking if target ref exists');
-            if (yield refHelper.testRefExists(git, settings.targetRef)) {
+            core.info(`Checking if target ref ${settings.targetRef} exists`);
+            let targetRefExists = yield refHelper.testRefExists(git, settings.targetRef);
+            core.info(`Target ref exists: ${targetRefExists}`);
+            if (targetRefExists) {
                 core.info(`target ref ${settings.targetRef} exists, checking it out`);
                 const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit);
                 yield git.fetch(refSpec);
                 settings.ref = settings.targetRef;
             }
+            core.info(`Target ref: ${settings.ref}`);
             core.endGroup();
             // Checkout info
             core.startGroup('Determining the checkout info');

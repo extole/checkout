@@ -149,15 +149,19 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     core.startGroup('Checking if target ref can be checked out')
 
     // Check if the passed ref/commit exists. If not, use defaultBranch
-    core.info('Checking if target ref exists')
+    core.info(`Checking if target ref ${settings.targetRef} exists`)
 
-    if (await refHelper.testRefExists(git, settings.targetRef)) {
+    let targetRefExists = await refHelper.testRefExists(git, settings.targetRef);
+    core.info(`Target ref exists: ${targetRefExists}`)
+    if (targetRefExists) {
       core.info(`target ref ${settings.targetRef} exists, checking it out`)
       const refSpec = refHelper.getRefSpec(settings.targetRef, settings.commit)
       await git.fetch(refSpec)
 
       settings.ref = settings.targetRef
     }
+
+    core.info(`Target ref: ${settings.ref}`)
 
     core.endGroup()
 
