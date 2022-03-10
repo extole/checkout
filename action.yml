@@ -13,7 +13,7 @@ inputs:
     description: >
       Whether to checkout the default repository branch if specified ref does not exist.
       If this is set to true, then fetch-depth should be 0
-    default: false
+    default: true
   token:
     description: >
       Personal access token (PAT) used to fetch the repository. The PAT is configured
