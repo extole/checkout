@@ -36,68 +36,95 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
   const git = await getGitCommandManager(settings)
   core.endGroup()
 
-  // Prepare existing directory, otherwise recreate
-  if (isExisting) {
-    await gitDirectoryHelper.prepareExistingDirectory(
-      git,
-      settings.repositoryPath,
-      repositoryUrl,
-      settings.clean,
-      settings.ref
-    )
-  }
+  let authHelper: gitAuthHelper.IGitAuthHelper | null = null
+  try {
+    if (git) {
+      authHelper = gitAuthHelper.createAuthHelper(git, settings)
+      if (settings.setSafeDirectory) {
+        // Setup the repository path as a safe directory, so if we pass this into a container job with a different user it doesn't fail
+        // Otherwise all git commands we run in a container fail
+        await authHelper.configureTempGlobalConfig()
+        core.info(
+          `Adding repository directory to the temporary git global config as a safe directory`
+        )
 
-  if (!git) {
-    // Downloading using REST API
-    core.info(`The repository will be downloaded using the GitHub REST API`)
-    core.info(
-      `To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH`
-    )
-    if (settings.submodules) {
-      throw new Error(
-        `Input 'submodules' not supported when falling back to download using the GitHub REST API. To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH.`
-      )
-    } else if (settings.sshKey) {
-      throw new Error(
-        `Input 'ssh-key' not supported when falling back to download using the GitHub REST API. To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH.`
+        await git
+          .config('safe.directory', settings.repositoryPath, true, true)
+          .catch(error => {
+            core.info(
+              `Failed to initialize safe directory with error: ${error}`
+            )
+          })
+
+        stateHelper.setSafeDirectory()
+      }
+    }
+
+    // Prepare existing directory, otherwise recreate
+    if (isExisting) {
+      await gitDirectoryHelper.prepareExistingDirectory(
+        git,
+        settings.repositoryPath,
+        repositoryUrl,
+        settings.clean,
+        settings.ref
       )
     }
 
-    await githubApiHelper.downloadRepository(
-      settings.authToken,
-      settings.repositoryOwner,
-      settings.repositoryName,
-      settings.ref,
-      settings.commit,
-      settings.repositoryPath
-    )
-    return
-  }
+    if (!git) {
+      // Downloading using REST API
+      core.info(`The repository will be downloaded using the GitHub REST API`)
+      core.info(
+        `To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH`
+      )
+      if (settings.submodules) {
+        throw new Error(
+          `Input 'submodules' not supported when falling back to download using the GitHub REST API. To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH.`
+        )
+      } else if (settings.sshKey) {
+        throw new Error(
+          `Input 'ssh-key' not supported when falling back to download using the GitHub REST API. To create a local Git repository instead, add Git ${gitCommandManager.MinimumGitVersion} or higher to the PATH.`
+        )
+      }
 
-  // Save state for POST action
-  stateHelper.setRepositoryPath(settings.repositoryPath)
+      await githubApiHelper.downloadRepository(
+        settings.authToken,
+        settings.repositoryOwner,
+        settings.repositoryName,
+        settings.ref,
+        settings.commit,
+        settings.repositoryPath,
+        settings.githubServerUrl
+      )
+      return
+    }
 
-  // Initialize the repository
-  if (
-    !fsHelper.directoryExistsSync(path.join(settings.repositoryPath, '.git'))
-  ) {
-    core.startGroup('Initializing the repository')
-    await git.init()
-    await git.remoteAdd('origin', repositoryUrl)
+    // Save state for POST action
+    stateHelper.setRepositoryPath(settings.repositoryPath)
+
+    // Initialize the repository
+    if (
+      !fsHelper.directoryExistsSync(path.join(settings.repositoryPath, '.git'))
+    ) {
+      core.startGroup('Initializing the repository')
+      await git.init()
+      await git.remoteAdd('origin', repositoryUrl)
+      core.endGroup()
+    }
+
+    // Disable automatic garbage collection
+    core.startGroup('Disabling automatic garbage collection')
+    if (!(await git.tryDisableAutomaticGarbageCollection())) {
+      core.warning(
+        `Unable to turn off git automatic garbage collection. The git fetch operation may trigger garbage collection and cause a delay.`
+      )
+    }
     core.endGroup()
-  }
 
-  // Disable automatic garbage collection
-  core.startGroup('Disabling automatic garbage collection')
-  if (!(await git.tryDisableAutomaticGarbageCollection())) {
-    core.warning(
-      `Unable to turn off git automatic garbage collection. The git fetch operation may trigger garbage collection and cause a delay.`
-    )
-  }
-  core.endGroup()
-
-  const authHelper = gitAuthHelper.createAuthHelper(git, settings)
-  try {
+    // If we didn't initialize it above, do it now
+    if (!authHelper) {
+      authHelper = gitAuthHelper.createAuthHelper(git, settings)
+    }
     // Configure auth
     core.startGroup('Setting up auth')
     await authHelper.configureAuth()
@@ -127,7 +154,8 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         settings.ref = await githubApiHelper.getDefaultBranch(
           settings.authToken,
           settings.repositoryOwner,
-          settings.repositoryName
+          settings.repositoryName,
+          settings.githubServerUrl
         )
       }
       core.endGroup()
@@ -140,7 +168,10 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Fetch
     core.startGroup('Fetching the repository')
-    if (settings.fetchDepth <= 0 || (settings.defaultRefOnError && settings.defaultRefOnError === true)) {
+    if (
+      settings.fetchDepth <= 0 ||
+      (settings.defaultRefOnError && settings.defaultRefOnError === true)
+    ) {
       // Fetch all branches and tags
       let refSpec = refHelper.getRefSpecForAllHistory(
         settings.ref,
@@ -162,9 +193,8 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Checkout info
     core.startGroup('Determining the checkout info')
-    let checkoutInfo: refHelper.ICheckoutInfo;
+    let checkoutInfo: refHelper.ICheckoutInfo
     if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
-
       try {
         checkoutInfo = await refHelper.getCheckoutInfo(
           git,
@@ -172,7 +202,9 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
           settings.commit
         )
       } catch (error) {
-        core.info('Could not determine the checkout info. Trying the default repo branch')
+        core.info(
+          'Could not determine the checkout info. Trying the default repo branch'
+        )
         checkoutInfo = await refHelper.getCheckoutInfo(
           git,
           settings.defaultBranch,
@@ -204,34 +236,26 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
 
     // Submodules
     if (settings.submodules) {
-      try {
-        // Temporarily override global config
-        core.startGroup('Setting up auth for fetching submodules')
-        await authHelper.configureGlobalAuth()
-        core.endGroup()
+      // Temporarily override global config
+      core.startGroup('Setting up auth for fetching submodules')
+      await authHelper.configureGlobalAuth()
+      core.endGroup()
 
-        // Checkout submodules
-        core.startGroup('Fetching submodules')
-        await git.submoduleSync(settings.nestedSubmodules)
-        await git.submoduleUpdate(
-          settings.fetchDepth,
-          settings.nestedSubmodules
-        )
-        await git.submoduleForeach(
-          'git config --local gc.auto 0',
-          settings.nestedSubmodules
-        )
-        core.endGroup()
+      // Checkout submodules
+      core.startGroup('Fetching submodules')
+      await git.submoduleSync(settings.nestedSubmodules)
+      await git.submoduleUpdate(settings.fetchDepth, settings.nestedSubmodules)
+      await git.submoduleForeach(
+        'git config --local gc.auto 0',
+        settings.nestedSubmodules
+      )
+      core.endGroup()
 
-        // Persist credentials
-        if (settings.persistCredentials) {
-          core.startGroup('Persisting credentials for submodules')
-          await authHelper.configureSubmoduleAuth()
-          core.endGroup()
-        }
-      } finally {
-        // Remove temporary global config override
-        await authHelper.removeGlobalAuth()
+      // Persist credentials
+      if (settings.persistCredentials) {
+        core.startGroup('Persisting credentials for submodules')
+        await authHelper.configureSubmoduleAuth()
+        core.endGroup()
       }
     }
 
@@ -248,14 +272,18 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       settings.repositoryOwner,
       settings.repositoryName,
       settings.ref,
-      settings.commit
+      settings.commit,
+      settings.githubServerUrl
     )
   } finally {
     // Remove auth
-    if (!settings.persistCredentials) {
-      core.startGroup('Removing auth')
-      await authHelper.removeAuth()
-      core.endGroup()
+    if (authHelper) {
+      if (!settings.persistCredentials) {
+        core.startGroup('Removing auth')
+        await authHelper.removeAuth()
+        core.endGroup()
+      }
+      authHelper.removeGlobalConfig()
     }
   }
 }
@@ -278,7 +306,26 @@ export async function cleanup(repositoryPath: string): Promise<void> {
 
   // Remove auth
   const authHelper = gitAuthHelper.createAuthHelper(git)
-  await authHelper.removeAuth()
+  try {
+    if (stateHelper.PostSetSafeDirectory) {
+      // Setup the repository path as a safe directory, so if we pass this into a container job with a different user it doesn't fail
+      // Otherwise all git commands we run in a container fail
+      await authHelper.configureTempGlobalConfig()
+      core.info(
+        `Adding repository directory to the temporary git global config as a safe directory`
+      )
+
+      await git
+        .config('safe.directory', repositoryPath, true, true)
+        .catch(error => {
+          core.info(`Failed to initialize safe directory with error: ${error}`)
+        })
+    }
+
+    await authHelper.removeAuth()
+  } finally {
+    await authHelper.removeGlobalConfig()
+  }
 }
 
 async function getGitCommandManager(

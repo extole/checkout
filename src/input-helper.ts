@@ -79,7 +79,8 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   core.debug(`commit = '${result.commit}'`)
 
   // Default ref on error
-  result.defaultRefOnError = (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE'
+  result.defaultRefOnError =
+    (core.getInput('default-ref-on-error') || 'true').toUpperCase() === 'TRUE'
   core.debug(`default-ref-on-error = '${result.defaultRefOnError}'`)
 
   // Clean
@@ -125,6 +126,14 @@ export async function getInputs(): Promise<IGitSourceSettings> {
 
   // Workflow organization ID
   result.workflowOrganizationId = await workflowContextHelper.getOrganizationId()
+
+  // Set safe.directory in git global config.
+  result.setSafeDirectory =
+    (core.getInput('set-safe-directory') || 'true').toUpperCase() === 'TRUE'
+
+  // Determine the GitHub URL that the repository is being hosted from
+  result.githubServerUrl = core.getInput('github-server-url')
+  core.debug(`GitHub Host URL = ${result.githubServerUrl}`)
 
   return result
 }
