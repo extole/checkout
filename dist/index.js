@@ -1505,21 +1505,28 @@ function getSource(settings) {
             core.startGroup('Setting up auth');
             yield authHelper.configureAuth();
             core.endGroup();
-            if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+            if (settings.defaultRefOnError &&
+                settings.defaultRefOnError === true &&
+                !settings.ref &&
+                !settings.commit) {
                 // Configure default branch
                 core.startGroup('Setting up default branch');
                 if (settings.sshKey) {
                     settings.defaultBranch = yield git.getDefaultBranch(repositoryUrl);
                 }
                 else {
-                    settings.defaultBranch = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName);
+                    settings.defaultBranch = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName, settings.githubServerUrl);
                 }
                 core.endGroup();
             }
             // Determine the default branch
             if (!settings.ref && !settings.commit) {
                 core.startGroup('Determining the default branch');
-                if (settings.sshKey) {
+                if (settings.defaultBranch) {
+                    // Already resolved above while setting up the default branch for defaultRefOnError
+                    settings.ref = settings.defaultBranch;
+                }
+                else if (settings.sshKey) {
                     settings.ref = yield git.getDefaultBranch(repositoryUrl);
                 }
                 else {
@@ -1581,6 +1588,11 @@ function getSource(settings) {
                 }
                 catch (error) {
                     core.info('Could not determine the checkout info. Trying the default repo branch');
+                    if (!settings.defaultBranch) {
+                        settings.defaultBranch = settings.sshKey
+                            ? yield git.getDefaultBranch(repositoryUrl)
+                            : yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName, settings.githubServerUrl);
+                    }
                     checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.defaultBranch, settings.commit);
                 }
             }

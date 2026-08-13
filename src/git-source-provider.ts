@@ -133,7 +133,12 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     await authHelper.configureAuth()
     core.endGroup()
 
-    if (settings.defaultRefOnError && settings.defaultRefOnError === true) {
+    if (
+      settings.defaultRefOnError &&
+      settings.defaultRefOnError === true &&
+      !settings.ref &&
+      !settings.commit
+    ) {
       // Configure default branch
       core.startGroup('Setting up default branch')
       if (settings.sshKey) {
@@ -142,7 +147,8 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         settings.defaultBranch = await githubApiHelper.getDefaultBranch(
           settings.authToken,
           settings.repositoryOwner,
-          settings.repositoryName
+          settings.repositoryName,
+          settings.githubServerUrl
         )
       }
       core.endGroup()
@@ -151,7 +157,10 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     // Determine the default branch
     if (!settings.ref && !settings.commit) {
       core.startGroup('Determining the default branch')
-      if (settings.sshKey) {
+      if (settings.defaultBranch) {
+        // Already resolved above while setting up the default branch for defaultRefOnError
+        settings.ref = settings.defaultBranch
+      } else if (settings.sshKey) {
         settings.ref = await git.getDefaultBranch(repositoryUrl)
       } else {
         settings.ref = await githubApiHelper.getDefaultBranch(
@@ -245,6 +254,16 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         core.info(
           'Could not determine the checkout info. Trying the default repo branch'
         )
+        if (!settings.defaultBranch) {
+          settings.defaultBranch = settings.sshKey
+            ? await git.getDefaultBranch(repositoryUrl)
+            : await githubApiHelper.getDefaultBranch(
+                settings.authToken,
+                settings.repositoryOwner,
+                settings.repositoryName,
+                settings.githubServerUrl
+              )
+        }
         checkoutInfo = await refHelper.getCheckoutInfo(
           git,
           settings.defaultBranch,
