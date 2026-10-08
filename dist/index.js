@@ -1511,12 +1511,7 @@ function getSource(settings) {
                 !settings.commit) {
                 // Configure default branch
                 core.startGroup('Setting up default branch');
-                if (settings.sshKey) {
-                    settings.defaultBranch = yield git.getDefaultBranch(repositoryUrl);
-                }
-                else {
-                    settings.defaultBranch = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName, settings.githubServerUrl);
-                }
+                settings.defaultBranch = yield git.getDefaultBranch(repositoryUrl);
                 core.endGroup();
             }
             // Determine the default branch
@@ -1526,11 +1521,8 @@ function getSource(settings) {
                     // Already resolved above while setting up the default branch for defaultRefOnError
                     settings.ref = settings.defaultBranch;
                 }
-                else if (settings.sshKey) {
-                    settings.ref = yield git.getDefaultBranch(repositoryUrl);
-                }
                 else {
-                    settings.ref = yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName, settings.githubServerUrl);
+                    settings.ref = yield git.getDefaultBranch(repositoryUrl);
                 }
                 core.endGroup();
             }
@@ -1589,9 +1581,7 @@ function getSource(settings) {
                 catch (error) {
                     core.info('Could not determine the checkout info. Trying the default repo branch');
                     if (!settings.defaultBranch) {
-                        settings.defaultBranch = settings.sshKey
-                            ? yield git.getDefaultBranch(repositoryUrl)
-                            : yield githubApiHelper.getDefaultBranch(settings.authToken, settings.repositoryOwner, settings.repositoryName, settings.githubServerUrl);
+                        settings.defaultBranch = yield git.getDefaultBranch(repositoryUrl);
                     }
                     checkoutInfo = yield refHelper.getCheckoutInfo(git, settings.defaultBranch, settings.commit);
                 }

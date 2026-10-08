@@ -141,16 +141,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     ) {
       // Configure default branch
       core.startGroup('Setting up default branch')
-      if (settings.sshKey) {
-        settings.defaultBranch = await git.getDefaultBranch(repositoryUrl)
-      } else {
-        settings.defaultBranch = await githubApiHelper.getDefaultBranch(
-          settings.authToken,
-          settings.repositoryOwner,
-          settings.repositoryName,
-          settings.githubServerUrl
-        )
-      }
+      settings.defaultBranch = await git.getDefaultBranch(repositoryUrl)
       core.endGroup()
     }
 
@@ -160,15 +151,8 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       if (settings.defaultBranch) {
         // Already resolved above while setting up the default branch for defaultRefOnError
         settings.ref = settings.defaultBranch
-      } else if (settings.sshKey) {
-        settings.ref = await git.getDefaultBranch(repositoryUrl)
       } else {
-        settings.ref = await githubApiHelper.getDefaultBranch(
-          settings.authToken,
-          settings.repositoryOwner,
-          settings.repositoryName,
-          settings.githubServerUrl
-        )
+        settings.ref = await git.getDefaultBranch(repositoryUrl)
       }
       core.endGroup()
     }
@@ -255,14 +239,7 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
           'Could not determine the checkout info. Trying the default repo branch'
         )
         if (!settings.defaultBranch) {
-          settings.defaultBranch = settings.sshKey
-            ? await git.getDefaultBranch(repositoryUrl)
-            : await githubApiHelper.getDefaultBranch(
-                settings.authToken,
-                settings.repositoryOwner,
-                settings.repositoryName,
-                settings.githubServerUrl
-              )
+          settings.defaultBranch = await git.getDefaultBranch(repositoryUrl)
         }
         checkoutInfo = await refHelper.getCheckoutInfo(
           git,
